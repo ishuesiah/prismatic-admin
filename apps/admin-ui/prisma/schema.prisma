@@ -1,0 +1,204 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  picture       String?
+  googleId      String?   @unique
+  role          UserRole  @default(VIEWER)
+  status        UserStatus @default(ACTIVE)
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLogin     DateTime?
+  
+  // Relations
+  invitations   Invitation[] @relation("InvitedBy")
+  blogPosts     BlogPost[]
+  mindMaps      MindMap[]
+  auditLogs     AuditLog[]
+  apiCredentials ApiCredential[]
+  onboardingProgress OnboardingProgress[]
+  sessions      Session[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model Invitation {
+  id         String   @id @default(cuid())
+  email      String
+  token      String   @unique
+  invitedBy  String
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  acceptedAt DateTime?
+  
+  // Relations
+  inviter    User     @relation("InvitedBy", fields: [invitedBy], references: [id])
+  
+  @@index([email])
+  @@index([token])
+}
+
+model ApiCredential {
+  id                String   @id @default(cuid())
+  service           String
+  userId            String
+  encryptedCredentials String @db.Text
+  status            CredentialStatus @default(ACTIVE)
+  lastHealthCheck   DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([service, userId])
+  @@index([userId])
+}
+
+model BlogPost {
+  id               String   @id @default(cuid())
+  userId           String
+  title            String
+  slug             String   @unique
+  content          Json
+  excerpt          String?
+  featuredImage    String?
+  seo              Json?
+  status           PostStatus @default(DRAFT)
+  publishedAt      DateTime?
+  shopifyArticleId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  author           User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([slug])
+  @@index([status])
+}
+
+model MindMap {
+  id            String   @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  nodes         Json
+  edges         Json
+  isPublic      Boolean  @default(false)
+  collaborators String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  owner         User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+}
+
+model OnboardingWorkflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  steps       Json
+  userType    UserRole
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  progress    OnboardingProgress[]
+  
+  @@index([userType])
+}
+
+model OnboardingProgress {
+  id            String   @id @default(cuid())
+  userId        String
+  workflowId    String
+  currentStep   Int      @default(0)
+  completedSteps String[] @default([])
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workflow      OnboardingWorkflow @relation(fields: [workflowId], references: [id])
+  
+  @@unique([userId, workflowId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String
+  action       String
+  resourceType String
+  resourceId   String?
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  user         User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([resourceType])
+  @@index([createdAt])
+}
+
+// Enums
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  STAFF
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+enum CredentialStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+}

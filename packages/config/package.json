@@ -1,0 +1,15 @@
+{
+  "name": "@prismatic/config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "types": "index.ts",
+  "files": [
+    "*.js",
+    "*.ts"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

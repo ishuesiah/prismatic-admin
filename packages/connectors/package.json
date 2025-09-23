@@ -1,0 +1,29 @@
+{
+  "name": "@prismatic/connectors",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./shopify": "./shopify.ts",
+    "./klaviyo": "./klaviyo.ts",
+    "./slack": "./slack.ts",
+    "./shipstation": "./shipstation.ts",
+    "./base": "./base.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@shopify/admin-api-client": "^1.0.0",
+    "axios": "^1.7.0",
+    "@slack/web-api": "^7.8.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22"
+  }
+}
