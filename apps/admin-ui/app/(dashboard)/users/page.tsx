@@ -163,7 +163,7 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">
+          <p className=" ">
             Manage users, roles, and permissions
           </p>
         </div>
@@ -247,7 +247,7 @@ export default function UsersPage() {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4  " />
                 <Input
                   placeholder="Search users..."
                   value={searchTerm}
@@ -262,7 +262,7 @@ export default function UsersPage() {
                 <SelectValue placeholder="Filter by role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Roles</SelectItem>
+                <SelectItem value="ALL">All Roles</SelectItem>
                 <SelectItem value="SUPERADMIN">Super Admin</SelectItem>
                 <SelectItem value="ADMIN">Admin</SelectItem>
                 <SelectItem value="STAFF">Staff</SelectItem>
@@ -275,7 +275,7 @@ export default function UsersPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Status</SelectItem>
+                <SelectItem value="ALL">All Status</SelectItem>
                 <SelectItem value="ACTIVE">Active</SelectItem>
                 <SelectItem value="INVITED">Invited</SelectItem>
                 <SelectItem value="INACTIVE">Inactive</SelectItem>
@@ -299,9 +299,9 @@ export default function UsersPage() {
         <CardContent>
           {users.length === 0 ? (
             <div className="text-center py-12">
-              <UserPlus className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-semibold text-foreground">No users found</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <UserPlus className="mx-auto h-12 w-12  " />
+              <h3 className="mt-2 text-sm font-semibold">No users found</h3>
+              <p className="mt-1 text-sm  ">
                 {searchTerm || filterRole || filterStatus 
                   ? 'Try adjusting your search or filters.'
                   : 'Get started by inviting a team member.'}
@@ -336,7 +336,7 @@ export default function UsersPage() {
                           {user.status}
                         </Badge>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                      <div className="flex items-center space-x-4 text-sm  ">
                         <span>{user.email}</span>
                         <span className="flex items-center">
                           <Calendar className="mr-1 h-3 w-3" />
@@ -352,7 +352,7 @@ export default function UsersPage() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm  ">
                       {user._count.auditLogs} actions
                     </span>
                   </div>
@@ -364,7 +364,7 @@ export default function UsersPage() {
           {/* Pagination */}
           {pagination && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between border-t pt-4 mt-4">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm  ">
                 Page {pagination.page} of {pagination.totalPages} 
                 ({pagination.totalCount} total users)
               </p>

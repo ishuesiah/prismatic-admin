@@ -1,11 +1,9 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { PrismaClient } from "@prisma/client"
 import Google from "next-auth/providers/google"
 import { ALLOWED_DOMAINS, ROLE_PERMISSIONS, SUPERADMIN_EMAIL } from "@prismatic/lib/constants"
 import type { UserRole, Permission } from "@prismatic/lib/types"
-
-const prisma = new PrismaClient()
+import { prisma } from "./prisma"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -21,67 +19,77 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (!user.email) return false
-
-      // Check if email domain is allowed
-      const emailDomain = user.email.split("@")[1]
-      if (!ALLOWED_DOMAINS.includes(emailDomain)) {
+      console.log('[AUTH] Sign in attempt:', { email: user.email, provider: account?.provider })
+      
+      if (!user.email) {
+        console.log('[AUTH] No email provided')
         return false
       }
 
-      // Check if user exists
-      const existingUser = await prisma.user.findUnique({
-        where: { email: user.email }
-      })
+      // Check if email domain is allowed
+      const emailDomain = user.email.split("@")[1]
+      console.log('[AUTH] Checking domain:', emailDomain)
+      
+      if (!ALLOWED_DOMAINS.includes(emailDomain)) {
+        console.log('[AUTH] Domain not allowed:', emailDomain)
+        return false
+      }
 
-      // If user doesn't exist, check for invitation
-      if (!existingUser) {
-        const invitation = await prisma.invitation.findFirst({
-          where: {
-            email: user.email,
-            status: "PENDING",
-            expiresAt: { gt: new Date() }
-          }
+      try {
+        // Check if user exists
+        let existingUser = await prisma.user.findUnique({
+          where: { email: user.email }
         })
-
-        if (!invitation && user.email !== SUPERADMIN_EMAIL) {
-          return false
-        }
-
-        // Create user with appropriate role
-        const role: UserRole = user.email === SUPERADMIN_EMAIL ? "SUPERADMIN" : "VIEWER"
         
-        await prisma.user.create({
-          data: {
-            email: user.email,
-            name: user.name,
-            picture: user.image,
-            googleId: account?.providerAccountId,
-            role,
-            status: "ACTIVE",
-            lastLogin: new Date()
-          }
-        })
+        console.log('[AUTH] Existing user:', existingUser ? 'Found' : 'Not found')
 
-        // Mark invitation as accepted if exists
-        if (invitation) {
-          await prisma.invitation.update({
-            where: { id: invitation.id },
-            data: {
-              status: "ACCEPTED",
-              acceptedAt: new Date()
+        // If user doesn't exist, check for invitation or if it's superadmin
+        if (!existingUser) {
+          const invitation = await prisma.invitation.findFirst({
+            where: {
+              email: user.email,
+              status: "PENDING",
+              expiresAt: { gt: new Date() }
+            }
+          })
+
+          if (!invitation && user.email !== SUPERADMIN_EMAIL) {
+            console.log('[AUTH] No invitation found and not superadmin')
+            return false
+          }
+
+          // Mark invitation as accepted if exists
+          if (invitation) {
+            await prisma.invitation.update({
+              where: { id: invitation.id },
+              data: {
+                status: "ACCEPTED",
+                acceptedAt: new Date()
+              }
+            })
+          }
+          
+          console.log('[AUTH] User will be created by adapter')
+        } else {
+          // Update last login and link Google account if not already linked
+          console.log('[AUTH] Updating existing user')
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { 
+              lastLogin: new Date(),
+              googleId: account?.providerAccountId || existingUser.googleId,
+              picture: user.image || existingUser.picture,
+              name: user.name || existingUser.name
             }
           })
         }
-      } else {
-        // Update last login
-        await prisma.user.update({
-          where: { id: existingUser.id },
-          data: { lastLogin: new Date() }
-        })
-      }
 
-      return true
+        console.log('[AUTH] Sign in approved')
+        return true
+      } catch (error) {
+        console.error('[AUTH] Error during sign in:', error)
+        return false
+      }
     },
     
     async jwt({ token, user, trigger, session }) {
