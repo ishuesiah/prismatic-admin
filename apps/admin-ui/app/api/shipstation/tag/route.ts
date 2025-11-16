@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { shipstationLogger } from "@/lib/debug"
 
 const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY
 const SHIPSTATION_API_SECRET = process.env.SHIPSTATION_API_SECRET

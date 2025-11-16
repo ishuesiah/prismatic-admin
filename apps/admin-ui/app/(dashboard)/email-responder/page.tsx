@@ -7,6 +7,7 @@ import { CsvUploader } from "@/components/email-responder/csv-uploader"
 import { AiInstructionsPanel } from "@/components/email-responder/ai-instructions-panel"
 import { EmailGroupCard } from "@/components/email-responder/email-group-card"
 import { ResponseRulesPanel } from "@/components/email-responder/response-rules-panel"
+import { DebugPanel } from "@/components/debug-panel"
 import { toast } from "react-hot-toast"
 import { useSession } from "next-auth/react"
 
@@ -547,6 +548,9 @@ export default function EmailResponderPage() {
           </div>
         </Card>
       )}
+
+      {/* Debug Panel */}
+      <DebugPanel />
     </div>
   )
 }

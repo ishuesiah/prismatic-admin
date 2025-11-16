@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { gmailLogger } from "@/lib/debug"
 
 const GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 
@@ -83,13 +84,17 @@ export async function POST(request: NextRequest) {
     const session = await auth()
 
     if (!session?.user) {
+      gmailLogger.warn("Unauthorized sync attempt")
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       )
     }
 
+    gmailLogger.info(`Starting Gmail sync for user: ${session.user.email}`)
+
     const { maxResults = 50, query = "in:inbox -from:me" } = await request.json()
+    gmailLogger.debug(`Sync params: maxResults=${maxResults}, query="${query}"`)
 
     // Get Gmail access token
     const account = await prisma.account.findFirst({
@@ -100,6 +105,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!account?.access_token) {
+      gmailLogger.error("No Gmail access token found for user")
       return NextResponse.json(
         { error: "Gmail not connected. Please sign in with Google." },
         { status: 403 }
@@ -107,8 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     const accessToken = account.access_token
-
-    console.log(`🔄 Syncing Gmail inbox for ${session.user.email}...`)
+    gmailLogger.success("Gmail access token retrieved")
 
     // Get message IDs
     const listResponse = await fetch(
@@ -122,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     if (!listResponse.ok) {
       const error = await listResponse.json()
-      console.error("Gmail API error:", error)
+      gmailLogger.error("Gmail API list request failed", { status: listResponse.status, error })
       return NextResponse.json(
         { error: "Failed to fetch messages from Gmail", details: error },
         { status: listResponse.status }
@@ -133,6 +138,7 @@ export async function POST(request: NextRequest) {
     const messageIds = listData.messages || []
 
     if (messageIds.length === 0) {
+      gmailLogger.info("No new messages found to sync")
       return NextResponse.json({
         success: true,
         synced: 0,
@@ -140,7 +146,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log(`📬 Found ${messageIds.length} messages to sync`)
+    gmailLogger.info(`Found ${messageIds.length} messages to process`)
 
     // Fetch full message details
     const messages: GmailMessage[] = []
@@ -158,11 +164,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Process and save messages
+    gmailLogger.info(`Processing ${messages.length} messages`)
     let syncedCount = 0
     let skippedCount = 0
 
     for (const message of messages) {
       try {
+        gmailLogger.debug(`Processing message ${message.id}`)
         const from = extractHeader(message, "From") || ""
         const subject = extractHeader(message, "Subject") || "No Subject"
         const messageBody = extractMessageBody(message)
@@ -213,11 +221,11 @@ export async function POST(request: NextRequest) {
 
         syncedCount++
       } catch (error) {
-        console.error(`Failed to process message ${message.id}:`, error)
+        gmailLogger.error(`Failed to process message ${message.id}`, error)
       }
     }
 
-    console.log(`✅ Synced ${syncedCount} new messages, skipped ${skippedCount} existing`)
+    gmailLogger.success(`Sync completed: ${syncedCount} new, ${skippedCount} skipped`)
 
     return NextResponse.json({
       success: true,
@@ -226,7 +234,7 @@ export async function POST(request: NextRequest) {
       total: messages.length
     })
   } catch (error) {
-    console.error("Gmail sync error:", error)
+    gmailLogger.error("Gmail sync failed", error)
     return NextResponse.json(
       { error: "Failed to sync Gmail", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

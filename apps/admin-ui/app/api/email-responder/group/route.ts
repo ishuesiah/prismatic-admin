@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { GroupType } from "@prisma/client"
 import Anthropic from "@anthropic-ai/sdk"
+import { aiLogger } from "@/lib/debug"
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
