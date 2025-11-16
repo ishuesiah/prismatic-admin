@@ -112,7 +112,9 @@ export function EmailItem({
                 {email.fromEmail}
               </span>
               {aiInsights && aiInsights.urgency >= 7 && (
-                <AlertCircle className="w-3 h-3 text-red-600 flex-shrink-0" title={`Urgency: ${aiInsights.urgency}/10`} />
+                <span title={`Urgency: ${aiInsights.urgency}/10`}>
+                  <AlertCircle className="w-3 h-3 text-red-600 flex-shrink-0" />
+                </span>
               )}
             </div>
             <div className="flex items-center gap-2">

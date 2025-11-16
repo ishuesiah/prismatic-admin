@@ -31,6 +31,10 @@ interface EmailGroupProps {
   onGenerateResponses: () => void
   customInstructions: string
   responseRules: any[]
+  selectedEmails?: Set<string>
+  onToggleEmailSelection?: (emailId: string) => void
+  onSelectAllInGroup?: (groupEmails: any[]) => void
+  onUpdate?: () => void
 }
 
 const getGroupIcon = (type: string) => {
@@ -63,13 +67,17 @@ const getGroupColor = (type: string) => {
   }
 }
 
-export function EmailGroupCard({ 
-  group, 
-  isExpanded, 
-  onToggle, 
+export function EmailGroupCard({
+  group,
+  isExpanded,
+  onToggle,
   onGenerateResponses,
   customInstructions,
-  responseRules 
+  responseRules,
+  selectedEmails,
+  onToggleEmailSelection,
+  onSelectAllInGroup,
+  onUpdate
 }: EmailGroupProps) {
   const [autoSaveStatus, setAutoSaveStatus] = useState<Record<string, "saving" | "saved" | null>>({})
   const [showAll, setShowAll] = useState(false)

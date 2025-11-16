@@ -117,7 +117,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.id = dbUser.id
           token.role = dbUser.role
           token.status = dbUser.status
-          token.permissions = ROLE_PERMISSIONS[dbUser.role]
+          token.permissions = ROLE_PERMISSIONS[dbUser.role as UserRole]
         }
       }
       

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { GroupType } from "@prisma/client"
 import Anthropic from "@anthropic-ai/sdk"
 import { aiLogger } from "@/lib/debug"
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
 })
+
+// Define GroupType locally until migration is run
+type GroupType = "PRIORITY" | "ORDER_STATUS" | "WHOLESALE" | "NO_ACTION" | "OTHER"
 
 interface EmailWithGrouping {
   id: string

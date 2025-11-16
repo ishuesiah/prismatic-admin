@@ -80,6 +80,7 @@ async function fetchShopifyOrder(orderNumber: string) {
 
 function getMockOrderData(orderNumber: string) {
   return {
+    id: `mock-${orderNumber}`,
     orderNumber: orderNumber,
     customer: {
       email: "customer@example.com",

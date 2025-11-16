@@ -1,24 +1,13 @@
 "use client"
 
 import React from 'react'
-import { NodeViewWrapper } from '@tiptap/react'
+import { NodeViewWrapper, NodeViewProps } from '@tiptap/react'
 
-interface ImageGalleryProps {
-  node: {
-    attrs: {
-      images: Array<{ src: string; alt?: string; caption?: string }>
-      layout: 'grid' | 'carousel' | 'masonry'
-    }
-  }
-  updateAttributes: (attrs: any) => void
-  deleteNode: () => void
-}
-
-export default function ImageGalleryComponent({ 
-  node, 
-  updateAttributes, 
-  deleteNode 
-}: ImageGalleryProps) {
+export default function ImageGalleryComponent({
+  node,
+  updateAttributes,
+  deleteNode
+}: NodeViewProps) {
   const { images = [], layout = 'grid' } = node.attrs
   
   const handleRemoveImage = (index: number) => {
