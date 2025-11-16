@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { Button, Card, CardContent, CardHeader } from "@prismatic/ui"
-import { Upload, Loader2, Sparkles, Mail } from "lucide-react"
+import { Upload, Loader2, Sparkles, Mail, RefreshCw, Send, User, Inbox } from "lucide-react"
 import { CsvUploader } from "@/components/email-responder/csv-uploader"
 import { AiInstructionsPanel } from "@/components/email-responder/ai-instructions-panel"
 import { EmailGroupCard } from "@/components/email-responder/email-group-card"
 import { ResponseRulesPanel } from "@/components/email-responder/response-rules-panel"
 import { toast } from "react-hot-toast"
+import { useSession } from "next-auth/react"
 
 interface EmailGroup {
   id: string
@@ -38,16 +39,22 @@ const defaultResponseRules = [
 ]
 
 export default function EmailResponderPage() {
+  const { data: session } = useSession()
   const [emails, setEmails] = useState<any[]>([])
   const [emailGroups, setEmailGroups] = useState<EmailGroup[]>([])
   const [customInstructions, setCustomInstructions] = useState("")
   const [responseRules, setResponseRules] = useState(defaultResponseRules)
   const [isLoading, setIsLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSyncingGmail, setIsSyncingGmail] = useState(false)
+  const [gmailSyncStatus, setGmailSyncStatus] = useState<any>(null)
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
+  const [isSendingBulk, setIsSendingBulk] = useState(false)
 
-  // Load existing email groups on mount
+  // Load existing email groups and Gmail status on mount
   useEffect(() => {
     loadEmailGroups()
+    checkGmailStatus()
   }, [])
 
   const loadEmailGroups = async () => {
@@ -165,13 +172,140 @@ export default function EmailResponderPage() {
   }
 
   const handleToggleGroup = (groupId: string) => {
-    setEmailGroups(prev => 
-      prev.map(group => 
-        group.id === groupId 
+    setEmailGroups(prev =>
+      prev.map(group =>
+        group.id === groupId
           ? { ...group, isExpanded: !group.isExpanded }
           : group
       )
     )
+  }
+
+  const checkGmailStatus = async () => {
+    try {
+      const response = await fetch("/api/gmail/sync")
+      if (response.ok) {
+        const status = await response.json()
+        setGmailSyncStatus(status)
+      }
+    } catch (error) {
+      console.error("Failed to check Gmail status:", error)
+    }
+  }
+
+  const handleGmailSync = async () => {
+    setIsSyncingGmail(true)
+    try {
+      const response = await fetch("/api/gmail/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maxResults: 100 })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to sync Gmail")
+      }
+
+      const result = await response.json()
+
+      if (result.synced > 0) {
+        toast.success(`Synced ${result.synced} new emails from Gmail`)
+
+        // Get all synced email IDs and group them
+        const emailsResponse = await fetch("/api/email-responder/groups")
+        if (emailsResponse.ok) {
+          const groups = await emailsResponse.json()
+          const allEmailIds = groups.flatMap((g: any) => g.emails.map((e: any) => e.id))
+
+          // Trigger grouping
+          const groupResponse = await fetch("/api/email-responder/group", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ emailIds: allEmailIds })
+          })
+
+          if (groupResponse.ok) {
+            await loadEmailGroups()
+          }
+        }
+      } else {
+        toast.success("No new emails to sync")
+      }
+
+      await checkGmailStatus()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to sync Gmail")
+    } finally {
+      setIsSyncingGmail(false)
+    }
+  }
+
+  const handleBulkReply = async () => {
+    if (selectedEmails.size === 0) {
+      toast.error("Please select emails to reply to")
+      return
+    }
+
+    setIsSendingBulk(true)
+    try {
+      const response = await fetch("/api/email-responder/bulk-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emailIds: Array.from(selectedEmails)
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to send bulk replies")
+      }
+
+      const result = await response.json()
+
+      toast.success(`Sent ${result.sent} replies${result.failed > 0 ? `, ${result.failed} failed` : ""}`)
+
+      // Clear selections
+      setSelectedEmails(new Set())
+
+      // Reload groups
+      await loadEmailGroups()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send bulk replies")
+    } finally {
+      setIsSendingBulk(false)
+    }
+  }
+
+  const handleToggleEmailSelection = (emailId: string) => {
+    setSelectedEmails(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(emailId)) {
+        newSet.delete(emailId)
+      } else {
+        newSet.add(emailId)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAllInGroup = (groupEmails: any[]) => {
+    const emailIds = groupEmails.map(e => e.id)
+    setSelectedEmails(prev => {
+      const newSet = new Set(prev)
+      const allSelected = emailIds.every(id => newSet.has(id))
+
+      if (allSelected) {
+        // Deselect all
+        emailIds.forEach(id => newSet.delete(id))
+      } else {
+        // Select all
+        emailIds.forEach(id => newSet.add(id))
+      }
+
+      return newSet
+    })
   }
 
   return (
@@ -180,16 +314,91 @@ export default function EmailResponderPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Mail className="w-8 h-8" />
-          Bulk Email Responder
+          Customer Service Platform
         </h1>
+        {session?.user && (
+          <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
+              <User className="w-4 h-4 text-blue-600" />
+              <span className="font-medium text-blue-900">{session.user.email}</span>
+            </div>
+            {selectedEmails.size > 0 && (
+              <Button
+                onClick={handleBulkReply}
+                disabled={isSendingBulk}
+                className="gap-2"
+              >
+                {isSendingBulk ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Send {selectedEmails.size} Replies
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* CSV Upload Section */}
+      {/* Gmail Sync Section */}
+      <Card>
+        <CardHeader>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Inbox className="w-5 h-5" />
+            Gmail Integration
+          </h2>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-gray-600">
+                {gmailSyncStatus?.isConnected
+                  ? `Connected as ${gmailSyncStatus.userEmail}`
+                  : "Connect your Gmail account to sync emails automatically"}
+              </p>
+              {gmailSyncStatus?.lastSync && (
+                <p className="text-xs text-gray-500">
+                  Last synced: {new Date(gmailSyncStatus.lastSync).toLocaleString()}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleGmailSync}
+              disabled={isSyncingGmail || !gmailSyncStatus?.isConnected}
+              className="gap-2"
+            >
+              {isSyncingGmail ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Sync Gmail
+                </>
+              )}
+            </Button>
+          </div>
+          {!gmailSyncStatus?.isConnected && (
+            <p className="mt-3 text-sm text-amber-600 bg-amber-50 p-3 rounded">
+              Sign out and sign in again to grant Gmail permissions
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* CSV Upload Section (Legacy) */}
       <Card>
         <CardHeader>
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Upload className="w-5 h-5" />
-            Upload Commslayer CSV
+            Upload CSV (Legacy)
           </h2>
         </CardHeader>
         <CardContent>
@@ -247,6 +456,10 @@ export default function EmailResponderPage() {
                 onGenerateResponses={() => handleGenerateResponses(group.id)}
                 customInstructions={customInstructions}
                 responseRules={responseRules}
+                selectedEmails={selectedEmails}
+                onToggleEmailSelection={handleToggleEmailSelection}
+                onSelectAllInGroup={handleSelectAllInGroup}
+                onUpdate={loadEmailGroups}
               />
             ))}
 
@@ -262,6 +475,10 @@ export default function EmailResponderPage() {
                 onGenerateResponses={() => handleGenerateResponses(group.id)}
                 customInstructions={customInstructions}
                 responseRules={responseRules}
+                selectedEmails={selectedEmails}
+                onToggleEmailSelection={handleToggleEmailSelection}
+                onSelectAllInGroup={handleSelectAllInGroup}
+                onUpdate={loadEmailGroups}
               />
             ))}
 
@@ -277,6 +494,10 @@ export default function EmailResponderPage() {
                 onGenerateResponses={() => handleGenerateResponses(group.id)}
                 customInstructions={customInstructions}
                 responseRules={responseRules}
+                selectedEmails={selectedEmails}
+                onToggleEmailSelection={handleToggleEmailSelection}
+                onSelectAllInGroup={handleSelectAllInGroup}
+                onUpdate={loadEmailGroups}
               />
             ))}
 
@@ -307,6 +528,10 @@ export default function EmailResponderPage() {
                 onGenerateResponses={() => handleGenerateResponses(group.id)}
                 customInstructions={customInstructions}
                 responseRules={responseRules}
+                selectedEmails={selectedEmails}
+                onToggleEmailSelection={handleToggleEmailSelection}
+                onSelectAllInGroup={handleSelectAllInGroup}
+                onUpdate={loadEmailGroups}
               />
             ))}
         </div>

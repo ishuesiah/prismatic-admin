@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@prismatic/ui"
-import { Copy, Package, User, Mail, Save, Check, Loader2 } from "lucide-react"
+import { Copy, Package, User, Mail, Save, Check, Loader2, Maximize2, MessageSquare, AlertCircle, Tag } from "lucide-react"
 import { toast } from "react-hot-toast"
+import { EmailModal } from "./email-modal"
 
 interface EmailItemProps {
   email: {
@@ -18,22 +19,32 @@ interface EmailItemProps {
     isEdited: boolean
     shopifyData?: any
     shipstationData?: any
+    aiInsights?: {
+      urgency: number
+      sentiment: string
+      keyIssues: string[]
+      suggestedTone: string
+      similarityTags: string[]
+    }
   }
   onResponseChange: (response: string) => void
   onFetchOrderDetails: (orderNumber: string) => Promise<any>
   autoSaveStatus?: "saving" | "saved" | null
+  onUpdate?: () => void
 }
 
-export function EmailItem({ 
-  email, 
-  onResponseChange, 
+export function EmailItem({
+  email,
+  onResponseChange,
   onFetchOrderDetails,
-  autoSaveStatus 
+  autoSaveStatus,
+  onUpdate
 }: EmailItemProps) {
   const [response, setResponse] = useState(email.autoResponse || "")
   const [isLoadingOrder, setIsLoadingOrder] = useState(false)
   const [orderDetails, setOrderDetails] = useState<any>(null)
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     setResponse(email.autoResponse || "")
@@ -81,29 +92,64 @@ export function EmailItem({
     }
   }
 
+  const aiInsights = email.aiInsights
+  const urgencyColor =
+    aiInsights && aiInsights.urgency >= 7
+      ? "border-red-300 bg-red-50"
+      : aiInsights && aiInsights.urgency >= 4
+      ? "border-yellow-300 bg-yellow-50"
+      : "border-gray-200"
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden h-full flex flex-col shadow-sm hover:shadow-md transition-shadow">
-      {/* Email Header - Compact */}
-      <div className="bg-gray-100 px-3 py-2 border-b">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Mail className="w-3 h-3 text-gray-500 flex-shrink-0" />
-            <span className="font-medium text-xs truncate">
-              {email.fromEmail}
-            </span>
+    <>
+      <div className={`bg-white rounded-lg border overflow-hidden h-full flex flex-col shadow-sm hover:shadow-md transition-shadow ${urgencyColor}`}>
+        {/* Email Header - Compact */}
+        <div className="bg-gray-100 px-3 py-2 border-b">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Mail className="w-3 h-3 text-gray-500 flex-shrink-0" />
+              <span className="font-medium text-xs truncate">
+                {email.fromEmail}
+              </span>
+              {aiInsights && aiInsights.urgency >= 7 && (
+                <AlertCircle className="w-3 h-3 text-red-600 flex-shrink-0" title={`Urgency: ${aiInsights.urgency}/10`} />
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {email.orderNumber && (
+                <span className="text-xs font-medium text-blue-600 flex-shrink-0">
+                  #{email.orderNumber}
+                </span>
+              )}
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="text-gray-500 hover:text-gray-700"
+                title="Open details"
+              >
+                <Maximize2 className="w-3 h-3" />
+              </button>
+            </div>
           </div>
-          {email.orderNumber && (
-            <span className="text-xs font-medium text-blue-600 ml-2 flex-shrink-0">
-              #{email.orderNumber}
-            </span>
+          {email.fromName && (
+            <div className="text-xs text-gray-600 truncate">
+              {email.fromName}
+            </div>
+          )}
+          {aiInsights && aiInsights.keyIssues && aiInsights.keyIssues.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {aiInsights.keyIssues.slice(0, 2).map((issue, idx) => (
+                <span key={idx} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded">
+                  {issue}
+                </span>
+              ))}
+              {aiInsights.keyIssues.length > 2 && (
+                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded">
+                  +{aiInsights.keyIssues.length - 2}
+                </span>
+              )}
+            </div>
           )}
         </div>
-        {email.fromName && (
-          <div className="text-xs text-gray-600 truncate">
-            {email.fromName}
-          </div>
-        )}
-      </div>
 
       {/* Email Message - Scrollable */}
       <div className="p-3 bg-gray-50 flex-1 overflow-y-auto max-h-64">
@@ -189,5 +235,13 @@ export function EmailItem({
         </div>
       </div>
     </div>
+
+      <EmailModal
+        email={email}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onUpdate={onUpdate}
+      />
+    </>
   )
 }

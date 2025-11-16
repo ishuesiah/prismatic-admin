@@ -38,6 +38,7 @@ model User {
   emailGroups   EmailGroup[]
   responseTemplates ResponseTemplate[]
   responseRules ResponseRule[]
+  emailComments EmailComment[]
 }
 
 model Account {
@@ -256,7 +257,10 @@ model EmailCorrespondence {
   orderNumber      String?
   shopifyData      Json?
   shipstationData  Json?
-  
+
+  // AI-powered insights
+  aiInsights       Json?     // Stores urgency, sentiment, keyIssues, suggestedTone, similarityTags
+
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   userId           String
@@ -264,9 +268,27 @@ model EmailCorrespondence {
   // Relations
   user             User      @relation(fields: [userId], references: [id])
   group            EmailGroup? @relation(fields: [groupId], references: [id])
-  
+  comments         EmailComment[]
+
   @@index([fromEmail])
   @@index([groupId])
+  @@index([userId])
+}
+
+model EmailComment {
+  id               String    @id @default(cuid())
+  emailId          String
+  userId           String
+  content          String    @db.Text
+  isInternal       Boolean   @default(true) // Internal team comments vs customer-facing
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  email            EmailCorrespondence @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id])
+
+  @@index([emailId])
   @@index([userId])
 }
 
