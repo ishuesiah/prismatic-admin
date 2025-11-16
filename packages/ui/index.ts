@@ -7,6 +7,7 @@ export * from './components/avatar'
 export * from './components/dialog'
 export * from './components/badge'
 export * from './components/select'
+export * from './components/collapsible-card'
 
 // Utils
 export { cn } from './lib/utils'

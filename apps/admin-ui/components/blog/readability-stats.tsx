@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card } from "@prismatic/ui"
+import { CollapsibleCard } from "@prismatic/ui"
 import { cn } from "@prismatic/ui"
 
 interface ReadabilityStatsProps {
@@ -141,9 +141,7 @@ export default function ReadabilityStats({ content }: ReadabilityStatsProps) {
   }
 
   return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">Readability</h3>
-      
+    <CollapsibleCard title="Readability" defaultExpanded={true}>
       {/* Readability Grade */}
       <div className="mb-6">
         <div className={cn("text-4xl font-bold", getGradeColor(stats.readabilityGrade))}>
@@ -208,6 +206,6 @@ export default function ReadabilityStats({ content }: ReadabilityStatsProps) {
           Start writing to see readability statistics
         </div>
       )}
-    </Card>
+    </CollapsibleCard>
   )
 }

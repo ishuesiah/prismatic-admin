@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@prismatic/ui"
-import { Card } from "@prismatic/ui"
-import { Sparkles, CheckCircle, AlertCircle, XCircle } from "lucide-react"
+import { CollapsibleCard } from "@prismatic/ui"
+import { Sparkles, CheckCircle, AlertCircle, XCircle, Check } from "lucide-react"
 
 interface SEOAnalyzerProps {
   title: string
@@ -13,6 +13,11 @@ interface SEOAnalyzerProps {
     metaTitle: string
     metaDescription: string
   }
+  onUpdateSEO?: (updates: Partial<{
+    metaTitle: string
+    metaDescription: string
+    excerpt: string
+  }>) => void
 }
 
 interface SEOScore {
@@ -22,10 +27,11 @@ interface SEOScore {
   strengths: string[]
 }
 
-export default function SEOAnalyzer({ title, content, excerpt, seo }: SEOAnalyzerProps) {
+export default function SEOAnalyzer({ title, content, excerpt, seo, onUpdateSEO }: SEOAnalyzerProps) {
   const [analyzing, setAnalyzing] = useState(false)
   const [analysis, setAnalysis] = useState<SEOScore | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [appliedSuggestions, setAppliedSuggestions] = useState<Set<string>>(new Set())
 
   async function analyzeSEO() {
     setAnalyzing(true)
@@ -76,19 +82,43 @@ export default function SEOAnalyzer({ title, content, excerpt, seo }: SEOAnalyze
     return <XCircle className="h-8 w-8 text-red-600" />
   }
 
+  const applySuggestion = (suggestion: string, index: number) => {
+    // Mark as applied
+    setAppliedSuggestions(prev => new Set([...prev, `${index}-${suggestion}`]))
+    
+    // If we have an onUpdateSEO callback, attempt to apply common suggestions
+    if (onUpdateSEO) {
+      // Parse suggestion and apply common fixes
+      if (suggestion.toLowerCase().includes('meta title') && suggestion.toLowerCase().includes('characters')) {
+        // Truncate meta title to 60 characters
+        const newTitle = (seo.metaTitle || title).substring(0, 60)
+        onUpdateSEO({ metaTitle: newTitle })
+      } else if (suggestion.toLowerCase().includes('meta description') && suggestion.toLowerCase().includes('characters')) {
+        // Truncate meta description to 160 characters
+        const newDescription = (seo.metaDescription || excerpt).substring(0, 160)
+        onUpdateSEO({ metaDescription: newDescription })
+      }
+    }
+  }
+
+  const headerContent = (
+    <Button
+      onClick={analyzeSEO}
+      disabled={analyzing || !title}
+      size="sm"
+      variant="outline"
+    >
+      <Sparkles className="h-4 w-4 mr-2" />
+      {analyzing ? "Analyzing..." : "Analyze SEO"}
+    </Button>
+  )
+
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">AI SEO Analysis</h3>
-        <Button
-          onClick={analyzeSEO}
-          disabled={analyzing || !title}
-          size="sm"
-        >
-          <Sparkles className="h-4 w-4 mr-2" />
-          {analyzing ? "Analyzing..." : "Analyze SEO"}
-        </Button>
-      </div>
+    <CollapsibleCard 
+      title="AI SEO Analysis" 
+      defaultExpanded={false}
+      headerContent={headerContent}
+    >
 
       {!analysis && !analyzing && !error && (
         <p className="text-sm text-gray-500">
@@ -181,20 +211,41 @@ export default function SEOAnalyzer({ title, content, excerpt, seo }: SEOAnalyze
             <div>
               <h4 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
-                Suggestions
+                Actionable Suggestions
               </h4>
               <ul className="space-y-2">
-                {analysis.suggestions.map((suggestion, index) => (
-                  <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span className="text-blue-600 mt-0.5">→</span>
-                    <span>{suggestion}</span>
-                  </li>
-                ))}
+                {analysis.suggestions.map((suggestion, index) => {
+                  const suggestionKey = `${index}-${suggestion}`
+                  const isApplied = appliedSuggestions.has(suggestionKey)
+                  
+                  return (
+                    <li key={index} className="text-sm text-gray-700 flex items-start gap-2 group">
+                      <span className="text-blue-600 mt-0.5">→</span>
+                      <div className="flex-1">
+                        <span className={isApplied ? "line-through text-gray-400" : ""}>{suggestion}</span>
+                      </div>
+                      {onUpdateSEO && !isApplied && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => applySuggestion(suggestion, index)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          Apply
+                        </Button>
+                      )}
+                      {isApplied && (
+                        <span className="text-green-600 text-xs">Applied ✓</span>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}
         </div>
       )}
-    </Card>
+    </CollapsibleCard>
   )
 }

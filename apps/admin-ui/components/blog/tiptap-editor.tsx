@@ -21,11 +21,13 @@ import {
   Redo,
   Link as LinkIcon,
   Image as ImageIcon,
+  Images,
   Sparkles,
   Loader2,
 } from "lucide-react"
 import { Button, cn } from "@prismatic/ui"
 import { HemingwayExtension } from "./hemingway-extension"
+import { ImageGallery } from "./image-gallery-extension"
 
 interface TiptapEditorProps {
   content: any
@@ -113,6 +115,11 @@ export default function TiptapEditor({
       HeadingWithId,
       HemingwayExtension.configure({
         enabled: editorState.highlighting,
+      }),
+      ImageGallery.configure({
+        HTMLAttributes: {
+          class: "image-gallery-wrapper",
+        },
       }),
       Image.configure({
         HTMLAttributes: {
@@ -240,6 +247,14 @@ export default function TiptapEditor({
     const url = window.prompt("Enter image URL:")
     if (url) {
       editor.chain().focus().setImage({ src: url }).run()
+    }
+  }
+
+  const addImageGallery = () => {
+    const url = window.prompt("Enter first image URL:")
+    if (url) {
+      const caption = window.prompt("Enter caption (optional):") || ""
+      editor.chain().focus().setImageGallery([{ src: url, caption, alt: caption }]).run()
     }
   }
 
@@ -386,6 +401,15 @@ export default function TiptapEditor({
           onClick={addImage}
         >
           <ImageIcon className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={addImageGallery}
+          title="Add image gallery"
+        >
+          <Images className="h-4 w-4" />
         </Button>
 
         <div className="w-px h-6 bg-gray-300 mx-1" />

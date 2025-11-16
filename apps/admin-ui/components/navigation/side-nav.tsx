@@ -13,7 +13,8 @@ import {
   BarChart,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Mail
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@prismatic/ui"
@@ -25,6 +26,7 @@ interface SideNavProps {
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home, permission: null },
+  { name: "Email Responder", href: "/email-responder", icon: Mail, permission: null },
   { name: "Blog Editor", href: "/blog", icon: FileEdit, permission: "blog:read" },
   { name: "Mind Maps", href: "/mindmaps", icon: Network, permission: "mindmap:read" },
   { name: "Onboarding", href: "/onboarding", icon: BookOpen, permission: "onboarding:read" },

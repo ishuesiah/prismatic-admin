@@ -239,6 +239,17 @@ export default function NewBlogPostPage() {
               content={formData.content}
               excerpt={formData.excerpt}
               seo={formData.seo}
+              onUpdateSEO={(updates) => {
+                setFormData(prev => ({
+                  ...prev,
+                  ...(updates.excerpt !== undefined && { excerpt: updates.excerpt }),
+                  seo: {
+                    ...prev.seo,
+                    ...(updates.metaTitle !== undefined && { metaTitle: updates.metaTitle }),
+                    ...(updates.metaDescription !== undefined && { metaDescription: updates.metaDescription }),
+                  }
+                }))
+              }}
             />
 
             {/* Status */}
