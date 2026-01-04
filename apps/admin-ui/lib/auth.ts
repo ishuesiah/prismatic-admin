@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import Google from "next-auth/providers/google"
+import Credentials from "next-auth/providers/credentials"
 import { ALLOWED_DOMAINS, ROLE_PERMISSIONS, SUPERADMIN_EMAIL } from "@prismatic/lib/constants"
 import type { UserRole, Permission } from "@prismatic/lib/types"
 import { prisma } from "./prisma"
@@ -12,6 +13,51 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
+    Credentials({
+      name: "Temporary Login",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        const tempPassword = process.env.TEMP_LOGIN_PASSWORD
+        if (!tempPassword) return null
+
+        const email = credentials?.email as string
+        const password = credentials?.password as string
+
+        if (!email || !password) return null
+        if (password !== tempPassword) return null
+
+        // Check domain
+        const emailDomain = email.split("@")[1]
+        if (!ALLOWED_DOMAINS.includes(emailDomain)) return null
+
+        // Find or create user
+        let user = await prisma.user.findUnique({ where: { email } })
+
+        if (!user) {
+          // Only allow superadmin email for temp login creation
+          if (email !== SUPERADMIN_EMAIL) return null
+
+          user = await prisma.user.create({
+            data: {
+              email,
+              name: email.split("@")[0],
+              role: "SUPERADMIN",
+              status: "ACTIVE"
+            }
+          })
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.picture
+        }
+      }
+    })
   ],
   pages: {
     signIn: "/login",
