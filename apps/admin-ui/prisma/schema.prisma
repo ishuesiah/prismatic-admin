@@ -328,3 +328,79 @@ enum GroupType {
   NO_ACTION     // Messages that don't need response
   OTHER
 }
+
+// ============================================
+// Product Brain - Single Source of Truth for SKUs
+// ============================================
+
+model Product {
+  id                  String        @id @default(cuid())
+  sku                 String        @unique
+  name                String
+  pickNumber          String?       // Warehouse pick label
+  locationCode        String?       // Format: A01-K1-A (Aisle-Kallax-Cube)
+
+  // External IDs
+  shopifyProductId    String?
+  shopifyVariantId    String?
+  shipstationProductId String?
+
+  // Classification
+  category            ProductCategory @default(ACCESSORY)
+  status              ProductStatus   @default(DRAFT)
+
+  // Sync tracking
+  lastShopifySync     DateTime?
+  lastShipstationSync DateTime?
+  shopifySyncError    String?
+  shipstationSyncError String?
+
+  // Metadata
+  notes               String?       @db.Text
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  syncLogs            ProductSyncLog[]
+
+  @@index([sku])
+  @@index([category])
+  @@index([status])
+  @@index([shopifyProductId])
+  @@index([shipstationProductId])
+}
+
+model ProductSyncLog {
+  id          String      @id @default(cuid())
+  productId   String
+  platform    SyncPlatform
+  action      String      // push, pull, error
+  details     Json?
+  success     Boolean
+  errorMessage String?
+  createdAt   DateTime    @default(now())
+
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([platform])
+  @@index([createdAt])
+}
+
+enum ProductCategory {
+  PLANNER
+  NOTEBOOK
+  INSERT
+  ACCESSORY
+}
+
+enum ProductStatus {
+  ACTIVE
+  DISCONTINUED
+  DRAFT
+}
+
+enum SyncPlatform {
+  SHOPIFY
+  SHIPSTATION
+}
