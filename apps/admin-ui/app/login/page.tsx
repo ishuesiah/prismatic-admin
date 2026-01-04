@@ -20,7 +20,7 @@ export default function LoginPage() {
           </div>
 
           {/* Login Form */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Google Sign In */}
             <button
               onClick={() => signIn("google", { callbackUrl: "/" })}
@@ -32,8 +32,16 @@ export default function LoginPage() {
               </span>
             </button>
 
+            {/* Use Different Account */}
+            <button
+              onClick={() => signIn("google", { callbackUrl: "/" }, { prompt: "select_account" })}
+              className="w-full flex items-center justify-center gap-3 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              Use a different Google account
+            </button>
+
             {/* Divider */}
-            <div className="relative">
+            <div className="relative pt-2">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
               </div>
