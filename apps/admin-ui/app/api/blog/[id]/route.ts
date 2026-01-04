@@ -5,11 +5,11 @@ import { prisma } from "@/lib/prisma"
 // GET /api/blog/[id] - Get single blog post
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -17,8 +17,9 @@ export async function GET(
       )
     }
 
+    const { id } = await params
     const post = await prisma.blogPost.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         author: {
           select: {
@@ -50,11 +51,11 @@ export async function GET(
 // PUT /api/blog/[id] - Update blog post
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -62,8 +63,9 @@ export async function PUT(
       )
     }
 
+    const { id } = await params
     const existingPost = await prisma.blogPost.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { userId: true },
     })
 
@@ -104,7 +106,7 @@ export async function PUT(
         where: { slug },
       })
 
-      if (slugConflict && slugConflict.id !== params.id) {
+      if (slugConflict && slugConflict.id !== id) {
         return NextResponse.json(
           { error: "A post with this slug already exists" },
           { status: 400 }
@@ -113,7 +115,7 @@ export async function PUT(
     }
 
     const updateData: any = {}
-    
+
     if (title !== undefined) updateData.title = title
     if (slug !== undefined) updateData.slug = slug
     if (content !== undefined) updateData.content = content
@@ -127,7 +129,7 @@ export async function PUT(
     if (shopifyArticleId !== undefined) updateData.shopifyArticleId = shopifyArticleId
 
     const post = await prisma.blogPost.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         author: {
@@ -152,11 +154,11 @@ export async function PUT(
 // DELETE /api/blog/[id] - Delete blog post
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -164,8 +166,9 @@ export async function DELETE(
       )
     }
 
+    const { id } = await params
     const existingPost = await prisma.blogPost.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { userId: true },
     })
 
@@ -188,7 +191,7 @@ export async function DELETE(
     }
 
     await prisma.blogPost.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ success: true })
