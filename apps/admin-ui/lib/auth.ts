@@ -68,16 +68,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ user, account, profile }) {
       console.log('[AUTH] Sign in attempt:', { email: user.email, provider: account?.provider })
-      
+
       if (!user.email) {
         console.log('[AUTH] No email provided')
         return false
       }
 
-      // Check if email domain is allowed
+      // For credentials provider, user was already validated in authorize()
+      if (account?.provider === "credentials") {
+        console.log('[AUTH] Credentials provider - user already validated')
+        // Update last login
+        try {
+          await prisma.user.update({
+            where: { email: user.email },
+            data: { lastLogin: new Date() }
+          })
+        } catch (e) {
+          console.log('[AUTH] Could not update last login:', e)
+        }
+        return true
+      }
+
+      // Check if email domain is allowed (for OAuth providers)
       const emailDomain = user.email.split("@")[1]
       console.log('[AUTH] Checking domain:', emailDomain)
-      
+
       if (!ALLOWED_DOMAINS.includes(emailDomain)) {
         console.log('[AUTH] Domain not allowed:', emailDomain)
         return false
@@ -88,7 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         let existingUser = await prisma.user.findUnique({
           where: { email: user.email }
         })
-        
+
         console.log('[AUTH] Existing user:', existingUser ? 'Found' : 'Not found')
 
         // If user doesn't exist, check for invitation or if it's superadmin
@@ -116,14 +131,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               }
             })
           }
-          
+
           console.log('[AUTH] User will be created by adapter')
         } else {
           // Update last login and link Google account if not already linked
           console.log('[AUTH] Updating existing user')
           await prisma.user.update({
             where: { id: existingUser.id },
-            data: { 
+            data: {
               lastLogin: new Date(),
               googleId: account?.providerAccountId || existingUser.googleId,
               picture: user.image || existingUser.picture,
